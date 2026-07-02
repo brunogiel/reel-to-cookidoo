@@ -22,6 +22,20 @@ No es un producto oficial de Vorwerk/Thermomix. Es una integración no oficial,
 reverse-engineered contra la API real de Cookidoo (ver disclaimer en el
 [README](../README.md)). Usala con tu propia cuenta de Cookidoo.
 
+## Para quién es esto
+Para cualquiera con Thermomix (TM6 u otro modelo con Cookidoo) que quiera
+convertir un reel de comida en una receta cargada de verdad en su Cookidoo
+— con seteos de máquina y ingredientes linkeados — en vez de copiarla a mano
+al editor web.
+
+## Parámetros
+- **`url`** (obligatorio): link al reel/video de origen (Instagram, TikTok o
+  YouTube). Si la receta ya está escrita en algún lado (no hace falta bajar
+  video), pasar el texto directo y saltar la sección de extracción.
+- **`locale`** (opcional, default `en`): dominio de Cookidoo en el que estás
+  logueado (`en` para `cookidoo.international`, `es-ES` para `cookidoo.es`,
+  etc.). Determina con qué locale se llama al loader.
+
 ## Regla 0 — token-eficiencia
 El sink de tokens típico es leer los frames del video de a uno y pelear con el
 editor web de Cookidoo. Por eso:
@@ -38,14 +52,14 @@ editor web de Cookidoo. Por eso:
 ## Extraer desde video (saltear si la receta ya existe escrita)
 Herramientas locales: `yt-dlp`, `ffmpeg`, `whisper`, vision (`Read` sobre `.jpg`).
 
-1. **Bajar** (carpeta temporal): `yt-dlp --write-info-json --write-description -o "reel.%(ext)s" "<url>"`. Leer `reel.info.json`: `uploader`, `description`, `duration`, `webpage_url`.
+1. **[DET] Bajar** (carpeta temporal): `yt-dlp --write-info-json --write-description -o "reel.%(ext)s" "<url>"`. Leer `reel.info.json`: `uploader`, `description`, `duration`, `webpage_url`.
    - **Fallback si yt-dlp falla en Instagram** (`empty media response`, típico cuando IG pide auth y no hay cookie de sesión disponible): con una pestaña logueada en instagram.com, se puede resolver el `mediaId` desde el shortcode y pegar un fetch a `/api/v1/media/{mediaId}/info/` con el header `x-ig-app-id`, tomar `video_versions[0].url` y navegar a esa URL para exponerla como URL del tab (las URLs de fbcdn viajan firmadas, no necesitan cookie) → descargarla con `curl`. El caption sale del mismo media info (`caption.text`).
-2. **¿El caption trae la receta completa?** Si sí, usalo. Si es un gancho tipo "comment X for the recipe", la receta no está ahí → vas a frames.
-3. **Audio:** `ffmpeg -i reel.mp4 -vn -ar 16000 -ac 1 reel.wav` + `whisper reel.wav --model base --language <en/es> --output_format txt --fp16 False`. Si el reel es solo música de fondo, Whisper puede alucinar texto ("Thank you", "♪") — descartalo y dependé del texto en pantalla.
-4. **Frames:** `ffmpeg -i reel.mp4 -vf "fps=1" frames/f%02d.jpg`. Leé ~6-8 estratégicos (ver Regla 0). Los reels suelen labelar cada ingrediente cuando lo agregan a cámara; anotá cada label nuevo + lo que se ve sin label (ajo, jengibre, etc.).
-5. **Sintetizar:** orden de pasos + lista de ingredientes. Si no hay cantidades (típico en reels), estimalas para el rinde y **marcalas explícitamente como "a ojo"**. Si sabés que quien va a comer tiene alguna alergia o restricción declarada, chequeá que la receta no la incluya.
+2. **[LATENT] ¿El caption trae la receta completa?** Si sí, usalo. Si es un gancho tipo "comment X for the recipe", la receta no está ahí → vas a frames.
+3. **[DET] Audio:** `ffmpeg -i reel.mp4 -vn -ar 16000 -ac 1 reel.wav` + `whisper reel.wav --model base --language <en/es> --output_format txt --fp16 False`. Si el reel es solo música de fondo, Whisper puede alucinar texto ("Thank you", "♪") — descartalo y dependé del texto en pantalla.
+4. **[DET] Frames:** `ffmpeg -i reel.mp4 -vf "fps=1" frames/f%02d.jpg`. Leé ~6-8 estratégicos (ver Regla 0). Los reels suelen labelar cada ingrediente cuando lo agregan a cámara; anotá cada label nuevo + lo que se ve sin label (ajo, jengibre, etc.).
+5. **[LATENT] Sintetizar:** orden de pasos + lista de ingredientes. Si no hay cantidades (típico en reels), estimalas para el rinde y **marcalas explícitamente como "a ojo"**. Si sabés que quien va a comer tiene alguna alergia o restricción declarada, chequeá que la receta no la incluya.
 
-## Reinterpretar a TM6 (paso previo a cargar en Cookidoo)
+## Reinterpretar a TM6 (paso previo a cargar en Cookidoo) [LATENT]
 La receta sintetizada del paso anterior es el **método neutro** (hornalla/sartén).
 Cookidoo no es eso traducido literal: es una receta **Thermomix de verdad**, y
 reinterpretarla es un paso de diseño aparte, antes de armar el payload de carga.
@@ -122,7 +136,7 @@ personal) — este skill nunca debe manejar ni pedir tus credenciales.
   cada pocos pasos, el tipeo rápido encadenado a veces pierde texto.
 - La foto se sube igual que en el flujo por API: a mano, 1 click.
 
-## Gate de verificación (recomendado antes de dar la receta por lista)
+## Gate de verificación (recomendado antes de dar la receta por lista) [LATENT]
 Antes de cerrar, conviene una segunda pasada crítica (podés hacerla vos mismo
 o con un segundo agente/modelo) que compare la receta final contra la fuente:
 
@@ -137,6 +151,13 @@ o con un segundo agente/modelo) que compare la receta final contra la fuente:
 - **Carga sin errores:** los chips TM6 y los ingredientes linkeados
   renderizaron de verdad en la UI de Cookidoo (verificalo ahí, un 200 de la
   API no lo garantiza).
+
+## Archivos / cuentas que toca
+| Qué | Acción |
+|---|---|
+| Video + audio + frames descargados | Lecto-escritura solo en una carpeta temporal local (scratch) — no persiste nada al terminar |
+| Tu cuenta de Cookidoo | Único write real y persistente: crea (o actualiza) una receta vía su API. `cookidooDelete` la borra si hace falta |
+| Cualquier otro archivo/servicio tuyo | No toca nada — el skill no lee ni escribe notas, sheets, ni bases de datos propias |
 
 ## Output esperado
 Receta cocinable (pasos en orden, sin ingredientes huérfanos), cantidades
