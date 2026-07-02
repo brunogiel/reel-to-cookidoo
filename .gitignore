@@ -1,0 +1,7 @@
+.DS_Store
+*.mp4
+*.wav
+frames/
+node_modules/
+.brain
+CLAUDE.local.md
