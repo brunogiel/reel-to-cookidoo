@@ -35,7 +35,7 @@ Ver el detalle completo en [`skill/SKILL.md`](skill/SKILL.md).
 
 - Un agente con acceso a shell local (Claude Code, o similar) y a un
   navegador con contexto de ejecución de JS (para el loader de Cookidoo).
-- Herramientas locales instaladas: [`yt-dlp`](https://github.com/yt-dlp/yt-dlp), `ffmpeg`, [`whisper`](https://github.com/openai/whisper).
+- Herramientas locales instaladas: [`yt-dlp`](https://github.com/yt-dlp/yt-dlp), [`ffmpeg`](https://ffmpeg.org/), [`whisper`](https://github.com/openai/whisper).
 - Una cuenta de Cookidoo activa (family o personal), logueada en el
   navegador que use el agente.
 
