@@ -99,11 +99,17 @@ ingredientes) y el tip. Esto reemplaza cargar todo a mano en el editor web
   Cookidoo es su propio dominio de sesión). Fijate en qué dominio estás
   logueado antes de correr el loader.
 - **Cómo:** pegá el archivo entero en el contexto de la página → `await cookidooLoad(recipe, { locale: 'es-ES' })` (ajustá el locale al dominio en el que estás logueado) → devuelve `{id, url}`. Para borrar: `await cookidooDelete(id, 'es-ES')`. El schema de `recipe` y el wire format están documentados en el header del `.js`.
-- **Gotchas conocidos de la API** (documentados en el header del loader):
-  el chip TTS con `direction: 'reverse'` puede devolver 400 en algunos
-  dominios (mencionalo en la prosa del paso en vez de forzarlo); el campo
-  `hints` (tip) a veces no persiste vía PATCH — verificalo en la UI y pegalo a
-  mano si falta.
+- **Giro inverso:** se pasa `reverse: true` en los `settings` del paso y el
+  loader arma el chip solo. En el wire format, el chip TTS lleva
+  `direction: 'CCW'` (valores válidos: `'CW'`, el default, que se omite, y
+  `'CCW'`; `'reverse'` o `'ccw'` devuelven 400) **y** el label lleva el ícono
+  `\uE003` entre temperatura y velocidad: `10 sec/\uE003/speed 1`. La
+  velocidad cuchara es speed `'soft'` y se imprime como `speed \uE002`.
+  Sacado del bundle JS del editor de Cookidoo (`pl-customer-recipes-*.js`:
+  `getAnnotationText` une time/temp/direction/speed con `/`).
+- **Gotchas conocidos de la API** (documentados en el header del loader): el
+  campo `hints` (tip) a veces no persiste vía PATCH — verificalo en la UI y
+  pegalo a mano si falta.
 - **Foto:** el "Upload image" de Cookidoo pasa por un widget de subida en un
   iframe cross-origin (Cloudinary), no automatizado por este loader. El
   fallback es: recortar un frame cuadrado del plato terminado del video
