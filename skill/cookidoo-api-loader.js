@@ -57,7 +57,7 @@
 //   Ingredientes:  PATCH {ingredients:[{type:'INGREDIENT', text:'...'}]}
 //   Pasos:         PATCH {instructions:[{type:'STEP', text:'<plano+labels>',
 //                          annotations:[{type, data, position:{offset,length}}]}]}
-//     · TTS data:        {speed:'5', time:5, temperature?:{value:'100',unit:'C'}, direction?:'reverse'}
+//     · TTS data:        {speed:'5', time:5, temperature?:{value:'100',unit:'C'}, direction?:'CCW'}  (giro inverso = 'CCW' + ícono \uE003 en el label)
 //       (time en SEGUNDOS; speed string; temperature objeto; el label va inline en `text`)
 //     · INGREDIENT data: {description:'<texto EXACTO de un ingrediente de la lista>'}
 //     · position: offset/length apuntan al span del label/mención dentro de `text`.
@@ -118,7 +118,11 @@
       const v = s.temperature.value != null ? s.temperature.value : s.temperature;
       parts.push(/varoma/i.test(String(v)) ? 'Varoma' : `${v}°C`);
     }
-    if (s.speed != null) parts.push(`speed ${s.speed}`);
+    // Giro inverso: el editor mete el ícono \uE003 entre temp y velocidad ("10 sec/\uE003/speed 1").
+    // Vel cuchara = speed 'soft' → se imprime con el ícono \uE002. Sacado del bundle del editor
+    // (pl-customer-recipes-*.js: getAnnotationText = time/temp/direction/speed unidos por '/').
+    if (s.reverse) parts.push('\uE003');
+    if (s.speed != null) parts.push(`speed ${String(s.speed) === 'soft' ? '\uE002' : s.speed}`);
     return parts.join('/');
   }
   function ttsData(s) {
@@ -129,7 +133,7 @@
       const v = s.temperature.value != null ? s.temperature.value : s.temperature;
       d.temperature = { value: String(v), unit: s.temperature.unit || 'C' };
     }
-    if (s.reverse) d.direction = 'reverse';
+    if (s.reverse) d.direction = 'CCW'; // valores válidos: 'CW' (default, se omite) | 'CCW'. 'reverse'/'ccw' → 400.
     return d;
   }
 
