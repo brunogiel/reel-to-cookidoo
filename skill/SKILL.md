@@ -107,13 +107,18 @@ ingredientes) y el tip. Esto reemplaza cargar todo a mano en el editor web
   velocidad cuchara es speed `'soft'` y se imprime como `speed \uE002`.
   Sacado del bundle JS del editor de Cookidoo (`pl-customer-recipes-*.js`:
   `getAnnotationText` une time/temp/direction/speed con `/`).
+- **Varoma:** en `settings` pasá `temperature: { value: 'varoma' }`. El loader
+  lo manda como `{value:'varoma', unit:'C'}`, en minúscula: la API rechaza
+  `'Varoma'` con 400 y deja la receta a medio crear (borrala y volvé a correr).
 - **Gotchas conocidos de la API** (documentados en el header del loader): el
   campo `hints` (tip) a veces no persiste vía PATCH — verificalo en la UI y
   pegalo a mano si falta.
-- **Foto:** el "Upload image" de Cookidoo pasa por un widget de subida en un
-  iframe cross-origin (Cloudinary), no automatizado por este loader. El
-  fallback es: recortar un frame cuadrado del plato terminado del video
-  original y subirlo a mano en el editor (1 click).
+- **Foto:** recortá un frame cuadrado del plato terminado del video original
+  y subilo con `await cookidooUploadImage(id, imagen, 'es-ES')`, donde
+  `imagen` es un `File`/`Blob` o una URL / `data:` URL. Pide una firma a
+  Cookidoo, sube el archivo firmado a su Cloudinary y lo linkea a la receta.
+  Si falla (Cookidoo rotó la `api_key` o el preset), subila a mano en el
+  editor (1 click).
 - Si el loader falla (cambió la API, sesión caída, etc.), caé al fallback por
   navegador de abajo.
 
@@ -140,7 +145,7 @@ personal) — este skill nunca debe manejar ni pedir tus credenciales.
   herramientas de automatización de formularios pueden no funcionar; hay que
   clickear y tipear directo. Si automatizás esto, verificá con screenshots
   cada pocos pasos, el tipeo rápido encadenado a veces pierde texto.
-- La foto se sube igual que en el flujo por API: a mano, 1 click.
+- La foto se sube a mano con el botón "Upload image" del editor (1 click).
 
 ## Gate de verificación (recomendado antes de dar la receta por lista) [LATENT]
 Antes de cerrar, conviene una segunda pasada crítica (podés hacerla vos mismo
