@@ -28,6 +28,7 @@ reel/video → extraer receta → reinterpretar como receta Thermomix real → c
 - Carga la receta en tu cuenta de Cookidoo por su API (no oficial,
   reverse-engineered), con chips TM6 e ingredientes linkeados — no solo
   texto plano.
+- Sube la foto del plato (un frame del video) a la receta, también por API.
 
 Ver el detalle completo en [`skill/SKILL.md`](skill/SKILL.md).
 

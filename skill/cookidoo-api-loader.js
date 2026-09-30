@@ -41,7 +41,7 @@
 //     ]
 //   }
 //
-//   settings TM6:  { time(seg, number), speed(number|string), temperature?{value,unit:'C'|'Varoma'}, reverse?:true }
+//   settings TM6:  { time(seg, number), speed(number|string), temperature?{value:number|'varoma',unit:'C'}, reverse?:true }
 //
 // QUÉ HACE EL LOADER
 //   - Crea la receta (POST) y la rellena con PATCH PARCIALES (un campo por vez,
@@ -64,14 +64,19 @@
 //   Nombre/tip/etc: PATCH parciales {name}, {hints}, {yield}, {tools}, {prepTime,cookTime,totalTime}.
 //   El PATCH base SANITIZA html (cr-tts/cr-ingredient como <tags> => 400 "unsafe html"):
 //     por eso los chips van como `annotations` posicionales, NO como html en `text`.
+//     · Varoma: temperature {value:'varoma', unit:'C'} en MINÚSCULA. 'Varoma' → 400
+//       y deja la receta a medio crear (ya existe el POST, fallan los PATCH).
 //   Borrar:        DELETE /created-recipes/en/{id}   (204)
 //
-// FOTO (no automatizado): el "Upload image" es un Cloudinary Upload Widget en
-//   iframe cross-origin; sube a Cloudinary y luego linkea con PATCH
-//   {image:'prod/img/customer-recipe/{public_id}.jpg', isImageOwnedByUser:true}.
-//   Requiere capturar el signed-upload de Cloudinary con un archivo real, no
-//   está cubierto por este loader. Fallback: subir la foto a mano (1 click)
-//   en el editor web después de correr este script.
+// FOTO  await cookidooUploadImage(id, imagen, 'es-ES')
+//   `imagen` = File/Blob, o un string con URL / data: URL (se descarga a Blob).
+//   El widget de Cloudinary del editor es solo UI; el flujo real son 3 llamadas:
+//   (1) POST /created-recipes/{loc}/image/signature {timestamp, source:'uw'} -> {signature}
+//   (2) POST multipart a Cloudinary (cloud `vorwerk-users-gc`) con file + api_key +
+//       timestamp + source + upload_preset + signature -> {public_id, format}
+//   (3) PATCH la receta {image:`${public_id}.${format}`, isImageOwnedByUser:true}.
+//   api_key, cloud y preset salen de los atributos de <core-upload-modal> en la
+//   página /edit de cualquier receta propia; si Cookidoo los rota, se actualizan ahí.
 // ============================================================================
 
 (function () {
@@ -131,7 +136,8 @@
     if (s.time != null) d.time = Number(s.time);
     if (s.temperature) {
       const v = s.temperature.value != null ? s.temperature.value : s.temperature;
-      d.temperature = { value: String(v), unit: s.temperature.unit || 'C' };
+      // Varoma: la API solo acepta 'varoma' en minúscula, siempre con unit 'C' ('Varoma' → 400).
+      d.temperature = /varoma/i.test(String(v)) ? { value: 'varoma', unit: 'C' } : { value: String(v), unit: s.temperature.unit || 'C' };
     }
     if (s.reverse) d.direction = 'CCW'; // valores válidos: 'CW' (default, se omite) | 'CCW'. 'reverse'/'ccw' → 400.
     return d;
@@ -215,7 +221,27 @@
     return r.status; // 204 ok, 410 si ya estaba borrada
   }
 
+  // --- foto: firma en Cookidoo -> upload firmado a Cloudinary -> PATCH de la receta ---
+  const CLD = { apiKey: '993585863591145', cloud: 'vorwerk-users-gc', preset: 'prod-customer-recipe-signed', host: 'https://api-eu.cloudinary.com' };
+
+  async function cookidooUploadImage(id, image, loc = 'en') {
+    const blob = typeof image === 'string' ? await (await pf(image)).blob() : image;
+    const ts = Math.floor(Date.now() / 1000);
+    const { signature } = await jpost(`${API(loc)}/image/signature`, { timestamp: ts, source: 'uw' });
+    const fd = new FormData();
+    fd.append('file', blob, blob.name || (blob.type === 'image/png' ? 'foto.png' : 'foto.jpg'));
+    fd.append('api_key', CLD.apiKey); fd.append('timestamp', String(ts)); fd.append('source', 'uw');
+    fd.append('upload_preset', CLD.preset); fd.append('signature', signature);
+    // Cloudinary va SIN credentials: es otro origen y no usa la cookie de Cookidoo.
+    const r = await pf(`${CLD.host}/v1_1/${CLD.cloud}/image/upload`, { method: 'POST', body: fd });
+    const u = await r.json().catch(() => ({}));
+    if (!u.public_id) throw new Error(`Cloudinary ${r.status}: ${(u.error && u.error.message) || 'sin public_id'}`);
+    const j = await jpatch(`${API(loc)}/${id}`, { image: `${u.public_id}.${u.format}`, isImageOwnedByUser: true });
+    return { id, image: (j.recipeContent || {}).image };
+  }
+
   window.cookidooLoad = cookidooLoad;
   window.cookidooDelete = cookidooDelete;
-  return 'cookidoo-api-loader listo: window.cookidooLoad(recipe), window.cookidooDelete(id)';
+  window.cookidooUploadImage = cookidooUploadImage;
+  return 'cookidoo-api-loader listo: window.cookidooLoad(recipe), window.cookidooUploadImage(id, imagen), window.cookidooDelete(id)';
 })();
