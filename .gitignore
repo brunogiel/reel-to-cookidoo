@@ -5,3 +5,4 @@ frames/
 node_modules/
 .brain
 CLAUDE.local.md
+.env

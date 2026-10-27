@@ -51,7 +51,8 @@
 //     del NLP de /annotate (que solo parsea español natural, no el label inglés).
 //   - INGREDIENTES LINKEADOS: usa POST /annotate/steps para que el server
 //     auto-detecte y matchee las menciones contra la lista de ingredientes
-//     (matcheo fuzzy en español; cubre la mayoría, no siempre el 100%).
+//     (matcheo fuzzy en español; falla seguido: saltea menciones y linkea mal).
+//     Para un linkeo exacto, correr después cookidoo-relink.js (por posición).
 //
 // WIRE FORMAT (reverse-engineered, ground-truth capturado del editor)
 //   Ingredientes:  PATCH {ingredients:[{type:'INGREDIENT', text:'...'}]}

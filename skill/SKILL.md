@@ -44,8 +44,8 @@ editor web de Cookidoo. Por eso:
   los frames donde cambia el overlay de ingredientes en pantalla. Parás apenas
   tenés todos los labels.
 - **No re-leas** archivos que acabás de escribir.
-- **Cookidoo: batcheá** todas las llamadas de una vez (ver Destino ⭐ abajo).
-  Nunca una acción por call.
+- **Cookidoo: por API, nunca por el editor web** (ver Destino ⭐ abajo). El
+  navegador es el último fallback.
 - Si la receta ya está escrita en algún lado (nota, doc, mensaje), **saltá toda
   la extracción de video** y construí directo desde ese texto.
 
@@ -78,15 +78,83 @@ por paso:
   cuchara (1); picar es un golpe corto a velocidad 5-7 sin temperatura;
   emulsionar salsas va a velocidad media sin temperatura.
 
+### La máquina va donde suma
+El TM6 no es obligatorio. Paso por paso, una sola pregunta: *¿el TM6 lo hace
+mejor, más rápido o más prolijo que la mano, la olla o la sartén?*
+- **Sí** → va al vaso, con su seteo real.
+- **No, o lo hace peor** → fuera de máquina, **y se dice explícito en la
+  receta**, con el porqué en una línea.
+
+Casos ya resueltos:
+- **Desmenuzar pollo: el TM6 gana.** Mariposa puesta, vel 4, tandas chicas,
+  unos segundos. Sin mariposa no se hace. Deshuesar es a mano antes: un hueso
+  a vel 4 rompe la mariposa.
+- **Picar cebolla: gana**, en tandas de 100-200 g.
+- **Dorar y sellar: pierde.** A Varoma la cebolla se suda, no carameliza. Va a
+  la sartén. Lo mismo para tostar frutos secos o especias enteras.
+- **Pasta larga o ancha ya cocida: nunca al vaso** con las cuchillas girando.
+- **Mezclados largos de mucha masa** (2-3 kg): no entran en el vaso, van a mano.
+- **Integrar mucha carne con su salsa** (~2 kg): no entra en el vaso de 2,2 L.
+  Se mezcla en la cacerola a fuego bajo. El vaso sí sirve para licuar y
+  reducir la salsa sola.
+- **Licuar líquido caliente a vel 10:** con el cubilete puesto y subiendo la
+  velocidad de a poco, máximo ~2 L (si no, en dos tandas). Arrancar directo a
+  vel 10 con caliente es riesgo de salpicadura.
+
+Una receta puede salir sin un solo seteo de TM6 y estar perfecta. Lo que no
+puede es meter la máquina donde arruina el plato.
+
 Esta reinterpretación es la que se pasa al loader de Cookidoo. El gate de
 verificación (abajo) la chequea, no la reemplaza.
 
-## Destino ⭐ — Cargar en Cookidoo por API (token-eficiente)
+## Destino ⭐ — Cargar en Cookidoo por API, sin navegador
 Carga la receta **a fidelidad completa**: nombre, tiempos, porciones,
-ingredientes, pasos con **chips TM6** (tiempo/temp/velocidad) e **ingredientes
-linkeados** (el server de Cookidoo los auto-detecta contra la lista de
-ingredientes) y el tip. Esto reemplaza cargar todo a mano en el editor web
-(mucho más lento) por ~6 llamadas `fetch`.
+ingredientes, pasos con **chips TM6** (tiempo/temp/velocidad), **ingredientes
+linkeados** y el tip. No necesita ninguna pestaña abierta: el script hace el
+login por HTTP y después ~6 llamadas a la API.
+
+- **Loader:** `cookidoo-headless.js` (en esta carpeta). Node ≥18, cero
+  dependencias. Replica el login CIAM que hace el editor web (usuario +
+  contraseña → cookies de sesión) y reusa el mismo wire format que
+  `cookidoo-api-loader.js`.
+- **Credenciales:** copiá `.env.example` a `~/.config/cookidoo/env`
+  (`chmod 600`) y completalo. El agente nunca ve ni tipea tu contraseña: el
+  script la lee del disco. No la pegues en el chat.
+- **Antes de cargar, listá lo que ya hay:** `node cookidoo-headless.js list`
+  (id · estado · nombre). Si la receta ya existe, no la dupliques.
+- **Crear:** `node cookidoo-headless.js create recipe.json` → `{id, url}`. El
+  schema de `recipe.json` está en el header de `cookidoo-api-loader.js`, y hay
+  un ejemplo completo en [`ejemplos/pure-coliflor-miso.json`](ejemplos/pure-coliflor-miso.json).
+- **Linkear los ingredientes por posición (correrlo siempre después del
+  create):** `node cookidoo-relink.js <id> recipe.json`. El auto-linkeo del
+  server (`POST /annotate/steps`) es un matcheo fuzzy que falla seguido: en
+  las pruebas linkeó 5 de 15 menciones, y una mal. El relink usa el campo
+  `links` del JSON (un array por paso, con pares `[mención, clave]`) y deja
+  cada mención atada a su ingrediente exacto, sin perder los chips TM6. El
+  ejemplo trae los `links` armados.
+- **Foto:** recortá un frame cuadrado del plato terminado y subilo con
+  `node cookidoo-headless.js image <id> foto.jpg`. Pide una firma a Cookidoo,
+  sube el archivo firmado a su Cloudinary y lo linkea a la receta. Si falla
+  (Cookidoo rotó la `api_key` o el preset), subila a mano en el editor.
+- **Compartir en público** (solo si el usuario lo pide, porque publica):
+  `node cookidoo-headless.js public <id>`. Pone la receta en `PUBLIC`, relee
+  el estado y chequea que la URL pública dé 200. Sirve para armar un QR.
+- **Borrar:** `node cookidoo-headless.js delete <id>` (204).
+- **Gotchas del wire format** (valen para los dos loaders, detalle en el
+  header del `.js`):
+  - **Giro inverso:** `reverse: true` en los `settings` del paso. En el wire
+    format el chip lleva `direction: 'CCW'` (`'reverse'` o `'ccw'` → 400) y el
+    label lleva el ícono `\uE003`: `10 sec/\uE003/speed 1`. La velocidad
+    cuchara es speed `'soft'` y se imprime como `speed \uE002`.
+  - **Varoma:** `temperature: { value: 'varoma' }`. Va en minúscula: `'Varoma'`
+    → 400 y deja la receta a medio crear (borrala y volvé a correr).
+  - **`hints`** (el tip) a veces no persiste vía PATCH: verificalo en la UI y
+    pegalo a mano si falta.
+- Si el login headless falla (Cookidoo cambió el flujo CIAM), caé al
+  fallback A.
+
+## Fallback A — loader en una pestaña logueada
+Mismo resultado, pero corre dentro del navegador en vez de hacer el login.
 
 - **Loader:** `cookidoo-api-loader.js` (en esta carpeta). La auth es la cookie
   de sesión httpOnly de tu propia sesión logueada en Cookidoo — **no hay que
@@ -99,33 +167,19 @@ ingredientes) y el tip. Esto reemplaza cargar todo a mano en el editor web
   Cookidoo es su propio dominio de sesión). Fijate en qué dominio estás
   logueado antes de correr el loader.
 - **Cómo:** pegá el archivo entero en el contexto de la página → `await cookidooLoad(recipe, { locale: 'es-ES' })` (ajustá el locale al dominio en el que estás logueado) → devuelve `{id, url}`. Para borrar: `await cookidooDelete(id, 'es-ES')`. El schema de `recipe` y el wire format están documentados en el header del `.js`.
-- **Giro inverso:** se pasa `reverse: true` en los `settings` del paso y el
-  loader arma el chip solo. En el wire format, el chip TTS lleva
-  `direction: 'CCW'` (valores válidos: `'CW'`, el default, que se omite, y
-  `'CCW'`; `'reverse'` o `'ccw'` devuelven 400) **y** el label lleva el ícono
-  `\uE003` entre temperatura y velocidad: `10 sec/\uE003/speed 1`. La
-  velocidad cuchara es speed `'soft'` y se imprime como `speed \uE002`.
-  Sacado del bundle JS del editor de Cookidoo (`pl-customer-recipes-*.js`:
-  `getAnnotationText` une time/temp/direction/speed con `/`).
-- **Varoma:** en `settings` pasá `temperature: { value: 'varoma' }`. El loader
-  lo manda como `{value:'varoma', unit:'C'}`, en minúscula: la API rechaza
-  `'Varoma'` con 400 y deja la receta a medio crear (borrala y volvé a correr).
-- **Gotchas conocidos de la API** (documentados en el header del loader): el
-  campo `hints` (tip) a veces no persiste vía PATCH — verificalo en la UI y
-  pegalo a mano si falta.
+- Los gotchas de giro inverso, Varoma y `hints` son los mismos de arriba.
 - **Foto:** recortá un frame cuadrado del plato terminado del video original
   y subilo con `await cookidooUploadImage(id, imagen, 'es-ES')`, donde
   `imagen` es un `File`/`Blob` o una URL / `data:` URL. Pide una firma a
   Cookidoo, sube el archivo firmado a su Cloudinary y lo linkea a la receta.
   Si falla (Cookidoo rotó la `api_key` o el preset), subila a mano en el
   editor (1 click).
-- Si el loader falla (cambió la API, sesión caída, etc.), caé al fallback por
-  navegador de abajo.
+- Si este loader también falla, caé al fallback por navegador de abajo.
 
-## Fallback — Cookidoo por navegador (más lento, usar solo si falla la API)
+## Fallback B — Cookidoo por navegador (el más lento, usar solo si fallan los dos loaders)
 Cookidoo es la plataforma oficial de Thermomix (`cookidoo.international` u
 otro dominio local). Logueate con tu propia cuenta (family account o
-personal) — este skill nunca debe manejar ni pedir tus credenciales.
+personal). El agente no tipea tu contraseña: el login lo hacés vos.
 
 - Ruta: Menú → **My Recipes → Created Recipes** → botón **"+"** → **Create
   recipe** → título → Create → editor.
@@ -167,7 +221,8 @@ o con un segundo agente/modelo) que compare la receta final contra la fuente:
 | Qué | Acción |
 |---|---|
 | Video + audio + frames descargados | Lecto-escritura solo en una carpeta temporal local (scratch) — no persiste nada al terminar |
-| Tu cuenta de Cookidoo | Único write real y persistente: crea (o actualiza) una receta vía su API. `cookidooDelete` la borra si hace falta |
+| Tu cuenta de Cookidoo | Único write real y persistente: crea (o actualiza) una receta vía su API. `delete <id>` la borra si hace falta. `public <id>` la publica: solo con tu OK |
+| `~/.config/cookidoo/env` | Solo lectura: de ahí salen tus credenciales para el login headless |
 | Cualquier otro archivo/servicio tuyo | No toca nada — el skill no lee ni escribe notas, sheets, ni bases de datos propias |
 
 ## Output esperado

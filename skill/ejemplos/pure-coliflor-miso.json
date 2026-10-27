@@ -1,0 +1,46 @@
+{
+  "name": "Puré de coliflor al miso y limón",
+  "yield": { "value": 4, "unitText": "portion" },
+  "tools": ["TM6"],
+  "prepTime": 600,
+  "cookTime": 1500,
+  "totalTime": 2100,
+  "ingredients": [
+    "600 g de agua",
+    "1 coliflor grande (1 kg aprox), en flores",
+    "30 g de aceite de oliva, y un hilo para servir",
+    "1 cda colmada de miso blanco",
+    "3 cdas de caldo de verduras concentrado",
+    "1 limón (jugo de ½ y ralladura para servir)",
+    "pimienta negra",
+    "sal",
+    "2 cdas de almendras fileteadas",
+    "1 pizca de ají seco"
+  ],
+  "hints": "Si tenés el líquido reducido de un braseado, usalo en lugar del caldo: le da más profundidad. Probá la sal recién al final, porque el miso ya aporta.",
+  "steps": [
+    {
+      "prose": "Poné el agua en el vaso. Colocá la coliflor en flores en el Varoma, tapá y cociná:",
+      "settings": { "time": 1500, "temperature": { "value": "varoma" }, "speed": 1 }
+    },
+    {
+      "prose": "Vaciá el agua del vaso. Poné la coliflor cocida, el aceite de oliva, el miso blanco, el caldo, el jugo de limón y la pimienta. Procesá:",
+      "settings": { "time": 40, "speed": 6 }
+    },
+    {
+      "prose": "Bajá con la espátula y terminá de procesar hasta que quede sedoso:",
+      "settings": { "time": 30, "speed": 8 }
+    },
+    "Si queda espeso, sumá 1 cda más de caldo o 1-2 cdas de agua caliente. Probá y salá recién al final: el miso ya aporta sal.",
+    "Fuera de máquina: en una sartén chica, tostá las almendras fileteadas con la pizca de ají seco, 2-3 min, moviendo. El TM6 no tuesta, suda.",
+    "Serví el puré con las almendras tostadas, la ralladura de limón y un hilo de aceite de oliva."
+  ],
+  "links": [
+    [["agua", "agua"], ["coliflor", "coliflor"]],
+    [["coliflor", "coliflor"], ["aceite de oliva", "aceite"], ["miso blanco", "miso"], ["caldo", "caldo"], ["limón", "limón"], ["pimienta", "pimienta"]],
+    [],
+    [["caldo", "caldo"], ["sal", "sal"]],
+    [["almendras", "almendras"], ["ají", "ají"]],
+    [["almendras", "almendras"], ["limón", "limón"], ["aceite de oliva", "aceite"]]
+  ]
+}
